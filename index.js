@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 //middleware
@@ -27,9 +27,57 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const jobsCollection = client.db('careerCode').collection('jobs');
-    //jobs api
-   app.get('/')
+    const jobsCollection = client.db("CareerCode").collection("Jobs");
+    const applicationsCollection = client
+      .db("CareerCode")
+      .collection("applications");
+
+    //jobs api All jobs pete chai
+    app.get("/Jobs", async (req, res) => {
+      const cursor = jobsCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    //Specific Id Job pete chai
+    app.get("/Jobs/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await jobsCollection.findOne(query);
+      res.send(result);
+    });
+
+    //job applications related API
+    app.get("/applications", async (req, res) => {
+      const email = req.query.email;
+
+      const query = {
+        applicant: email,
+      };
+      const result = await applicationsCollection.find(query).toArray();
+      //eivabe korbo na but apadoto er jonno korteci
+      for (const application of result) {
+        const jobId = application.jobId;
+        const jonQuery = { _id: new ObjectId(jobId) };
+        const job = await jobsCollection.findOne(jonQuery);
+        application.company = job.company;
+        application.title = job.title;
+        application.company_logo = job.company_logo;
+      }
+      res.send(result);
+    });
+    app.post("/applications", async (req, res) => {
+      const application = req.body;
+      console.log(application);
+      const result = await applicationsCollection.insertOne(application);
+      res.send(result);
+    });
+    //Delete
+    app.delete("/applications/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await applicationsCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
